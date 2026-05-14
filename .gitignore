@@ -1,0 +1,27 @@
+# 图片 / 媒体（二进制，体积大）
+bohedao/pics/
+bohedao/goofish/pics/
+meistingray/pics/
+hers/daodao/memories/private_chat/
+
+# 归档备份
+archive/
+
+# API 缓存（可重建）
+scripts/syndication_cache/
+
+# 生成文档（可由 REPORT.md 重新生成）
+them/REPORT.pdf
+them/REPORT.docx
+
+# 派生数据（可由脚本重建）
+them/periods/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Node
+node_modules/

@@ -1,0 +1,6 @@
+[submodule ".claude/skills/create-ex"]
+	path = .claude/skills/create-ex
+	url = https://github.com/therealXiaomanChu/ex-skill
+[submodule ".claude/skills/create-her"]
+	path = .claude/skills/create-her
+	url = https://github.com/ceetity/her-skill
