@@ -12,6 +12,8 @@ Archive + data-collection workspace focused on **@bohedaouo** (岛岛 Islander) 
 - `/read-meistingray` — 第三方视角分析青梅
 - `/read-them` — 研究者视角分析岛×青关系
 
+**Skill source files** live under `.agents/skills/` (each with its own `.git`, installable via marketplace). At runtime, `.claude/skills/` mirrors them — some are symlinks to external plugin directories (e.g. `find-skills`, `skill-creator`). **`AGENTS.md`** is the Codex mirror of this file (references `.Codex/` paths); keep the two in sync when updating either one.
+
 ## ⭐ Single Source of Truth — `FACTS.md`
 
 **`D:/islander/FACTS.md` 是关于岛岛、青梅、汐宝所有已确认事实的唯一真相源。** 所有 persona / memory / skill 文件都引用 FACT ID（F001、F200 等），不重复写事实内容。
@@ -137,9 +139,37 @@ When adding X-CDN images, upgrade to original resolution by appending `?format=j
 | `periods/` | 六期时间段切片（initiation/mutual/cooling/recovery/peak/collapse） |
 | `REPORT.md/docx/pdf` | 岛×青深度研究报告（17 章） |
 
-`interactions.json` 由 `scripts/build_interactions.mjs` 从两个主文件生成，可随时重建。`threads.json` 由 `scripts/build_threads.mjs` 从 interactions.json 派生。`periods/` 由 `scripts/build_periods.mjs` 按时间段切片。三个脚本可按顺序重跑：`build_interactions` → `build_threads` → `build_periods`。
+`interactions.json` / `threads.json` / `periods/` 是派生数据，可由 `scripts/` 重建（见下方 Scripts 章节）。
 
 旧的 `bohedaouo_to_meistingray.json` / `meistingray_to_bohedaouo.json` / `interactions_complete.json` 已归档到 `archive/them_pre_rebuild/`。
+
+## Scripts
+
+All scripts under `scripts/` are Node.js `.mjs` (ES modules). Run from repo root:
+
+```bash
+node scripts/<name>.mjs
+```
+
+### 数据抓取 & 预处理（用于新增/更新原始数据）
+
+| Script | Purpose |
+|--------|---------|
+| `scrape_replies.mjs` | 抓取岛岛回复（第一轮 search-based pass） |
+| `scrape_replies_r2.mjs` | 抓取岛岛回复（第二轮补充 pass） |
+| `dedupe_tweets.mjs` | 对多轮抓取结果去重 |
+| `syndication_enrich.mjs` | 通过 Twitter Syndication API 补全 tweet metadata（replyTo / type / stats / images） |
+| `syndication_apply.mjs` | 将 enrichment 结果合并回主 JSON 文件 |
+
+### 派生数据构建（按顺序执行）
+
+```bash
+node scripts/build_interactions.mjs   # 从两个主文件生成 them/interactions.json（871 条互动索引）
+node scripts/build_threads.mjs        # 从 interactions.json 生成 them/threads.json（443 个对话线程）
+node scripts/build_periods.mjs        # 按时间段切片 → them/periods/（6 期）
+```
+
+`build_interactions` → `build_threads` → `build_periods` 必须按此顺序执行，每一步依赖上一步的输出。
 
 ## Persona skill (`hers/daodao/`)
 
@@ -190,3 +220,19 @@ curl -s "http://localhost:3456/close?target=ID"
 - **Goofish** listings are also virtualized. The link pass should dedupe by `id`; the full pass opens each product URL and extracts `price` + `desc` from the detail view. Image URLs use `img.alicdn.com` (WebP thumbs); for product galleries, save as `goofish_pics/<productId>/N.jpg`.
 - Some sites flag automation aggressively; the `web-access` skill includes mitigations but not guarantees — warn the user before heavy scraping.
 - **New data goes to** `bohedao/twitter/` or `bohedao/goofish/` (not root). Update `hers/daodao/meta.json:memory_sources` after adding new files.
+
+## Intentionally gitignored
+
+These are deliberately excluded from version control (see `.gitignore`):
+
+| Path pattern | Reason |
+|-------------|--------|
+| `bohedao/pics/` | Binary media (X / Telegram images), large |
+| `bohedao/goofish/pics/` | Product gallery images, large |
+| `meistingray/pics/` | 青梅 screenshots |
+| `hers/daodao/memories/private_chat/` | Private chat screenshots (sensitive) |
+| `archive/` | Old version backups |
+| `scripts/syndication_cache/` | API response cache (rebuildable) |
+| `them/REPORT.pdf` `them/REPORT.docx` | Generated docs (rebuildable from REPORT.md) |
+| `them/periods/` | Derived data (rebuildable via `build_periods.mjs`) |
+| `.claude/settings.local.json` | Machine-local config |
