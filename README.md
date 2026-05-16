@@ -1,95 +1,76 @@
-# 岛岛档案
+# 岛屿探寻者：用数据管线解剖一段无法命名的人类关系
 
-<br>
-
-她在病里，做钩针。
-
-先悄悄评论了青梅几个月，才被看见。
-"贴了"，然后慢慢稀释，没有断裂。
-
-汐宝说，下辈子再去追。
-她说，不谈恋爱，在可以预见的将来。
-
-<br>
+> 2840 条推文。2688 条推文。871 条互动。443 个对话线程。699 个事实编号。四年，两个人，一份 17 章的研究报告。
+>
+> 这不是社会学实验。这是一个 DevOps 工程师面对无法修复的东西时，唯一能做的事。
+>
+> 想看故事的话，[在这里](故事.md)。
 
 ---
 
-> 关于 [@bohedaouo](https://x.com/bohedaouo)（岛岛 Islander）的数据归档与 AI Skill 工作区。
+## 项目做了什么
+
+把两个人四年间的公开 Twitter 数据完整归档，对每条推文标注类型、时间戳、互动量、回复对象，去重后按原始/回复/引用拆分。闲鱼店铺数据同样归档，366 件商品包含价格、描述、产品图集。两个数据集交叉比对后，提取出全部互动记录，按回复链和时间窗口重建对话线程，再按关系演化阶段切分为六个时期。
+
+最终产物：
+
+| 产物 | 规模 | 说明 |
+|------|------|------|
+| Twitter 归档 | 2840 + 2688 条 | 每条标注类型/时间/互动量/回复对象，schema v2.0 |
+| 闲鱼归档 | 366 件商品 × 2 店 | 含价格、描述、产品图集 |
+| 互动索引 | 871 条 | 全部交叉互动，精确到秒 |
+| 对话线程 | 443 个 | 按回复链 + 24h 窗口重建 |
+| 关系分期 | 6 期 | initiation → mutual → cooling → recovery → peak → collapse |
+| 研究报告 | 17 章 | 基于全部数据，引用模式、称呼演变、亲密度轨迹 |
+| 事实卡片 | 699 张 | 每张有编号、来源、确信度评级，append-only |
+| AI Skill | 4 个 | 分别扮演和分析两个人物 |
 
 ---
 
-## 项目简介
+## 技术选型
 
-本仓库是一个以数据为核心的研究工作区，收录岛岛在 X/Twitter 和 Goofish（闲鱼）上的公开内容，以及岛岛与青梅（[@MeiStingray](https://x.com/MeiStingray)）之间互动关系的深度分析。
+整个管线跑在 Claude Code 里，没有构建系统，没有数据库，没有后端。全部数据以 JSON 文件存储，用 Node.js 脚本处理。
 
-**没有构建系统**——这是一个数据仓库，配套数据处理脚本和 Claude AI Skill。
+选择这个栈的原因很具体：
+
+**JSON 而非数据库。** 五千多条推文不需要 SQL 查询优化。JSON 可以直接 grep、可以直接在 Claude Code 里读、可以直接被 AI Skill 加载为 memory source。零依赖，零迁移。
+
+**Claude Code 而非定制 UI。** 需要在同一个环境里做三件完全不同的事：读 JSON 分析模式、切到角色扮演、再切回报告写作。没有任何现有工具能同时做这三件事。Claude Code 可以读文件、跑脚本、切 skill，边界成本为零。
+
+**Node.js 脚本而非 Python。** 数据处理逻辑很简单——读两个大 JSON、按 statusId 做交集、重建回复链。Node.js 流式处理 JSON 最顺手，而且 Claude Code 的 bash 工具可以直接跑。
 
 ---
 
-## 数据结构
+## 数据管线
+
+采集、清洗、派生三层：
 
 ```
-islander/
-├── FACTS.md                  # 唯一真相源（所有已确认事实）
-├── CLAUDE.md                 # 项目说明与协作规范
-├── bohedao/
-│   ├── twitter/              # 岛岛 X/Twitter 归档（schema v2.0）
-│   │   ├── bohedaouo_tweets.json       # 全量 2840 条（2022–2026）
-│   │   ├── bohedaouo_originals.json    # 原创 734 条
-│   │   ├── bohedaouo_replies.json      # 回复 1991 条
-│   │   └── bohedaouo_quotes.json       # 引用 127 条
-│   └── goofish/              # 闲鱼店铺数据（两家店，共 366 件商品）
-├── meistingray/
-│   └── meistingray_timeline.json       # 青梅 2688 条推文（schema v2.0）
-├── them/
-│   ├── interactions.json     # 岛×青互动索引（871 条）
-│   ├── threads.json          # 对话线程（443 个）
-│   └── REPORT.md             # 岛×青深度研究报告（17 章）
-├── hers/daodao/              # 岛岛 persona skill
-├── scripts/                  # 数据处理脚本
-└── .claude/skills/           # Claude AI Skill 入口
+采集层                          清洗层                    派生层
+bohedao/twitter/*.json    →  去重                        →
+meistingray/*.json        →  Syndication API 补全       →  interactions.json
+bohedao/goofish/*.json    →  schema v2.0 统一格式       →  threads.json
+                                                        →  periods/
+                                                        →  REPORT.md
 ```
+
+**采集层**用 CDP browser automation 抓取。Twitter 的数据量最大，因为 virtual scrolling 每次只渲染 10-40 条，需要多轮增量抓取 + Set 去重。事后通过 Twitter Syndication API 补全 replyTo / type / stats / images 等元数据。
+
+**清洗层**的关键决策是 schema v2.0：岛岛和青梅的 tweet JSON 完全对齐字段名和结构，这样交叉比对脚本不需要做任何格式转换。
+
+**派生层**的三个脚本必须按顺序执行——`build_interactions` → `build_threads` → `build_periods`，每一步依赖上一步的输出。全部可删掉重建。
 
 ---
 
-## AI Skill 使用
+## FACTS.md：Append-Only 真相源
 
-在 Claude Code 中调用以下 skill：
+所有已确认事实存在 `FACTS.md` 里，按 ID 区间分类：
 
-| 命令 | 功能 |
+| 区间 | 内容 |
 |------|------|
-| `/daodao` | 扮演岛岛，基于推文 + 闲鱼数据 |
-| `/read-daodao` | 第三方视角分析岛岛的回复与行为 |
-| `/read-meistingray` | 第三方视角分析青梅 |
-| `/read-them` | 研究者视角分析岛×青关系 |
-
----
-
-## 数据脚本
-
-脚本按顺序执行，可随时重建派生数据：
-
-```bash
-node scripts/build_interactions.mjs   # 从两个主文件生成 interactions.json
-node scripts/build_threads.mjs        # 从 interactions.json 生成 threads.json
-node scripts/build_periods.mjs        # 按时间段切片到 them/periods/
-```
-
----
-
-## FACTS.md 维护协议
-
-`FACTS.md` 是所有已确认事实的唯一来源，所有 skill 文件通过 FACT ID（F001、F200 等）引用，不重复写内容。
-
-- **新发现** → 在对应 ID 区间追加新 FACT 卡片
-- **订正** → 在旧卡片底部追加 `CORRECTION:` 行，**不删原文**
-- **修改后** → 更新文件头部版本号
-
-| ID 区间 | 内容 |
-|---------|------|
-| F001–F049 | 岛岛基础信息 |
-| F050–F079 | 青梅基础信息 |
-| F080–F099 | 汐宝基础信息 |
+| F001–F049 | 岛岛基础 |
+| F050–F079 | 青梅基础 |
+| F080–F099 | 汐宝基础 |
 | F200–F299 | 岛×汐事件 |
 | F300–F349 | 岛×青事件 |
 | F350–F399 | 青×汐事件 |
@@ -97,10 +78,35 @@ node scripts/build_periods.mjs        # 按时间段切片到 them/periods/
 | F500–F599 | 元层 / 误认档案 |
 | F600–F699 | 语料库 |
 
+维护规则只有三条：新发现追加新卡片，订正在旧卡片底部加 `CORRECTION:` 行不删原文，改完后更新版本号。所有 AI Skill 引用 FACT ID 而不是重复写事实内容——一份真相源，多个消费端。
+
+这个设计模仿的是 append-only log：写进去的东西就是写进去了，修正只能追加，不能抹掉历史。
+
 ---
 
-## 注意事项
+## AI Skill 系统
 
-- 图片目录（`bohedao/pics/`、`meistingray/pics/` 等）已 gitignore，不在仓库中
-- 私聊截图（`hers/daodao/memories/private_chat/`）已 gitignore
-- 新抓取数据放到对应子目录后，需更新 `hers/daodao/meta.json:memory_sources`
+四个 skill 消费同一份数据，但角色完全不同：
+
+| Skill | 视角 | 做的事 |
+|-------|------|--------|
+| `/daodao` | 第一人称 | 扮演岛岛，基于推文+闲鱼数据生成回复 |
+| `/read-daodao` | 第三方 | 分析岛岛的行为模式、情绪状态、回复含义 |
+| `/read-meistingray` | 第三方 | 分析青梅的行为模式 |
+| `/read-them` | 研究者 | 基于全部数据提供关系分析，呈现证据而非代言 |
+
+每个 skill 有自己的 persona/memory 文件，但证据全部指向同一份 FACTS.md 和同批 JSON 数据。技能之间可以互相引用分析结论，形成交叉验证。
+
+---
+
+## 为什么做这个
+
+一个人四年间在公共平台上留下的数字痕迹，分散在五千多条推文和三百多件商品描述里。任何一条单独看都是碎片。但当你把它们全部归档、标注、交叉比对之后，碎片开始拼出形状——称呼的演变路径、互动频率的涨落相位、沉默的同步性。
+
+这不是 stalk。没有人肉任何非公开信息，没有越狱任何私密对话。每一行数据都来自公开页面。但把它们组织起来的力量，超过了任何一条单独的推文。
+
+那些数字背后有两个人和一段无法命名的人类关系。给混沌编号，是在没有修复方案时，唯一能做的事。
+
+---
+
+[故事在这里](故事.md)。
