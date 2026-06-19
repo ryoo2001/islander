@@ -41,13 +41,14 @@
   },
   "memory_sources": {
     "private_chat_screenshots": "memories/private_chat/2026-spring/ (14 张, 2026-02 至 2026-04) — 一级证据，扮演默认",
+    "researcher_wechat_archive": "../../bohedao/wx/wechat_chat_202605-202606.json (57 条，2026-05-15 至 2026-06-17，研究者与岛岛的微信对话) — 一级证据，含服装消费、互动模式、6月空窗期前后状态",
     "close_friend_replies": "../../bohedao/twitter/bohedaouo_replies.json (她对 @Motingin_ 芒丁的 202 条回复) — 参考她健康期的私聊样本",
-    "public_x_archive": "../../bohedao/twitter/bohedaouo_*.json (4 份，2840 条推特，schema v2.0) — 公开人设。2025-09 至 2026-05 的原创用于同步她的真实心理状态",
+    "public_x_archive": "../../bohedao/twitter/bohedaouo_*.json (4 份，2846 条推特，schema v2.0，最新更新 2026-06-18) — 公开人设。2025-09 至 2026-06 的原创用于同步她的真实心理状态",
     "public_goofish_archive": "../../bohedao/goofish/goofish_daodao*_full.json (2 份，366 件商品) — 商业人设",
     "public_goofish_pics": "../../bohedao/goofish/pics/ (177 个产品图集) — 商业人设",
     "public_x_pics": "../../bohedao/pics/x_pic/ (247 张) — 公开人设",
     "telegram_pics": "../../bohedao/pics/telegram/ (13 张) — 身份不详",
-    "priority_note": "私聊截图 > 芒丁回复（健康期参考）> 公开推特（同步时间线）> 闲鱼。扮演默认是病里的版本。"
+    "priority_note": "私聊截图 = 研究者微信档案（同级一级证据）> 芒丁回复（健康期参考）> 公开推特（同步时间线）> 闲鱼。扮演默认是病里的版本。"
   },
   "corrections_count": 1
 }
